@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ForgeStudio - Tool Management</title>
     <script>
-        const TOOL_VERSION = '1.5.0';
+        const TOOL_VERSION = '1.5.4';
     </script>
     <style>
         :root {
@@ -935,6 +935,10 @@
         let audioCtx = null;
         let isAudioReady = false; 
         
+        // NEW GLOBAL FLAGS
+        let isSplashComplete = false;
+        let hasInteracted = false;
+        
         // NEW: Flag to ensure promo polling only starts once
         let isPromoPollingStarted = false;
 
@@ -1001,6 +1005,21 @@
                          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
                          .join(' ');
         }
+        
+        // NEW: Handler for the first click/touch interaction
+        function handleFirstInteraction() {
+            // Only run once and if the splash screen is done
+            if (hasInteracted) return; 
+
+            hasInteracted = true;
+            
+            if (isSplashComplete) {
+                // Splash is already complete, so run immediately
+                startPromoPolling();
+                initializeAudioContext();
+            }
+            // If the splash is not complete, initializeApp() will handle it later.
+        }
 
 
         // Initialize the application
@@ -1025,7 +1044,13 @@
             setupEventListeners();
             checkAllTools();
             
-            // REMOVED: Immediate call to checkPromotionalMessage and setInterval
+            // NEW: Set flag that splash is done and check if interaction already occurred
+            isSplashComplete = true; 
+            if (hasInteracted) {
+                // If the user clicked while the splash screen was running, start polling/audio now.
+                startPromoPolling(); 
+                initializeAudioContext(); 
+            }
         }
         
         // --- AUDIO INIT & LOGIC ---
@@ -1357,14 +1382,8 @@
             linkCloseModal.addEventListener('click', () => manageLinkModal.style.display = 'none');
             
             // NEW: Add ONE click listener to initialize audio and start promo polling
-            document.addEventListener('click', (e) => {
-                initializeAudioContext();
-                startPromoPolling();
-            }, { once: true });
-            document.addEventListener('touchstart', (e) => {
-                initializeAudioContext();
-                startPromoPolling();
-            }, { once: true });
+            document.addEventListener('click', handleFirstInteraction, { once: true });
+            document.addEventListener('touchstart', handleFirstInteraction, { once: true });
             
             // Update Modal Listeners
             cancelUpdate.addEventListener('click', () => updateModal.style.display = 'none');
