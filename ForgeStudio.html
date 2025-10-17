@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForgeStudio - Tool Management</title>
+    <script>
+        const TOOL_VERSION = '1.0.0';
+    </script>
+    <style>
+        :root {
+            --primary: #1a1a1a;
+            --secondary: #667eea;
+            --accent: #764ba2;
+            --light: #f0f0f0;
+            --dark: #121212;
+            --success: #2ecc71;
+            --warning: #f59e0b;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            --radius: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: var(--primary);
+            color: var(--light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevents horizontal scrolling */
+        }
+
+        /* Splash Screen Styles */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--primary);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+
+        .splash-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            animation: pulse 2s infinite;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .logo-text {
+            font-size: 4rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: visible;
+            margin: 0 60px; /* Space for parentheses */
+        }
+
+        .logo-word {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.8s forwards;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .logo-word.forge {
+            animation-delay: 0.3s;
+        }
+
+        .logo-word.studio {
+            animation-delay: 0.6s;
+        }
+
+        .parenthesis {
+            font-size: 5rem;
+            font-weight: 300;
+            position: absolute;
+            opacity: 0;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .parenthesis.left {
+            left: -120px;
+            animation: slideInLeft 1s forwards 1.2s;
+        }
+
+        .parenthesis.right {
+            right: -120px;
+            animation: slideInRight 1s forwards 1.2s;
+        }
+
+        .loading-bar {
+            width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 2rem;
+        }
+
+        .loading-progress {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--secondary), var(--accent));
+            border-radius: 2px;
+            animation: loading 2.5s ease-in-out forwards;
+        }
+
+        .tagline {
+            margin-top: 1.5rem;
+            font-size: 1.2rem;
+            opacity: 0;
+            animation: fadeIn 0.8s forwards 2s;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInLeft {
+            to {
+                opacity: 1;
+                left: -30px; /* Adjusted to give more space */
+            }
+        }
+
+        @keyframes slideInRight {
+            to {
+                opacity: 1;
+                right: -30px; /* Adjusted to give more space */
+            }
+        }
+
+        @keyframes loading {
+            0% { width: 0%; }
+            70% { width: 85%; }
+            100% { width: 100%; }
+        }
+
+        /* Main App Styles */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            background: var(--primary);
+        }
+
+        .app-container.visible {
+            opacity: 1;
+        }
+
+        header {
+            background-color: var(--dark);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100; /* Ensure header is on top */
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon-small {
+            font-size: 2rem;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            /* EXPANDED SIDEBAR WIDTH */
+            width: 430px; 
+            background-color: rgba(33, 33, 33, 0.9);
+            padding: 1.5rem;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0; /* Prevent sidebar from shrinking */
+        }
+
+        .tools-section h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tools-grid {
+            /* 2-COLUMN GRID LAYOUT */
+            display: grid;
+            gap: 0.8rem;
+            grid-template-columns: repeat(2, 1fr); 
+        }
+
+        .tool-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius);
+            /* Slightly reduced overall padding */
+            padding: 1rem; 
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative; /* IMPORTANT: for absolute positioning of remove/status buttons */
+        }
+
+        .tool-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+            border-color: var(--secondary);
+        }
+
+        .tool-card.active {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: var(--secondary);
+        }
+        
+        /* NEW: Removal button styles */
+        .remove-tool-btn {
+            position: absolute;
+            top: -6px; /* Positioned slightly outside the top edge */
+            left: -6px; /* Positioned slightly outside the left edge */
+            width: 16px; 
+            height: 16px;
+            border-radius: 50%;
+            background-color: #e74c3c; 
+            color: white;
+            font-size: 10px;
+            line-height: 1;
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            border: 1px solid var(--dark);
+            transition: transform 0.1s;
+        }
+        
+        .tool-card:hover .remove-tool-btn {
+            display: flex; /* Show on hover */
+        }
+        
+        .remove-tool-btn:active {
+            transform: scale(0.9);
+        }
+
+        .tool-header {
+            /* Now only contains the tool name */
+            display: block; 
+            margin-bottom: 0.2rem; /* Adjusted vertical spacing */
+        }
+
+        .tool-name {
+            font-weight: 600;
+            font-size: 1rem; 
+            color: var(--light);
+            /* Name is now free to spread out horizontally */
+        }
+
+        .tool-status {
+            /* FIX: Pill shape and positioning */
+            position: absolute; /* Takes it out of flow */
+            top: 6px; /* Adjusted to 6px (approx 4% from top margin) for cleaner top positioning */
+            right: 10px; 
+            font-size: 0.65rem; /* Reduced by ~15% for smaller appearance */
+            padding: 0.1rem 0.4rem; /* Reduced vertical padding for thinner pill shape */
+            border-radius: 9999px; /* Guaranteed pill shape */
+            background: var(--dark);
+            transform: none; /* Remove previous staggering transform */
+            font-weight: 500; /* Subtle reduction in weight for a thinner look */
+        }
+
+        .tool-status.up-to-date {
+            background: var(--success);
+            color: white;
+        }
+
+        .tool-status.update-available {
+            background: var(--warning);
+            color: var(--dark);
+        }
+        
+        /* New Local status style */
+        .tool-status.local {
+            background: var(--accent);
+            color: white;
+        }
+
+        .tool-status.error {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .tool-version {
+            font-size: 0.8rem; /* Slightly smaller version text */
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .local-tool-section {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .local-tool-section h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: block; /* Centering requires block/inline-block */
+            
+            width: 232px; 
+            margin: 0 auto; /* CENTERED IN WIDER SIDEBAR */
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.2rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        .btn-outline:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 1.5rem; /* Padding for the empty state view */
+        }
+        
+        .status-bar {
+            background-color: var(--dark);
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-message {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .status-indicator.loading {
+            background: var(--warning);
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-indicator.error {
+            background: var(--accent);
+        }
+        
+        /* New Styles for Status Bar Fade-Out */
+        .status-bar #statusText, .status-bar #currentToolInfo {
+            display: inline-block;
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out; 
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @keyframes fadeOutDown {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+        }
+        
+        .status-bar .hidden-message {
+            animation: fadeOutDown 0.5s forwards;
+            pointer-events: none;
+        }
+        
+        /* --- PROMO BANNER STYLES (NEW) --- */
+        #promoBanner {
+            position: fixed;
+            /* Anchored below the header. The header is approx 5rem (1.5rem padding top/bottom + text) */
+            top: 0; 
+            left: 0;
+            width: 100%;
+            background: var(--warning);
+            color: var(--dark);
+            padding: 0.75rem 1.5rem;
+            text-align: center;
+            font-weight: 600;
+            z-index: 90; /* Below modals, above app content */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            /* Initial position is off-screen above the header */
+            transform: translateY(-100%); 
+            transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+            /* Added to account for the header's height (approx 5rem) */
+            margin-top: 5.5rem; 
+        }
+
+        #promoBanner.visible {
+            transform: translateY(0); /* Slides down into view */
+        }
+        
+        /* Keyframe for fading out and moving UP (as requested) */
+        @keyframes fadeOutUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100%); /* Moves upward off-screen */
+            }
+        }
+        
+        #promoBanner.fade-up {
+            animation: fadeOutUp 0.5s forwards;
+            /* Temporarily overrides the visibility transition */
+            transform: translateY(0); 
+        }
+        /* --- END PROMO BANNER STYLES --- */
+
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 2rem;
+            background: rgba(33, 33, 33, 0.9); /* Match sidebar background */
+            border-radius: var(--radius);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            color: rgba(255, 255, 255, 0.2);
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--light);
+        }
+
+        .empty-state p {
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 400px;
+            line-height: 1.5;
+        }
+        
+        /* --- FULL-SCREEN TOOL STYLES --- */
+        
+        .tool-fullscreen-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 999; /* Below splash, above app */
+            background: var(--primary); /* Fallback background */
+            display: none; /* Hidden by default - will be set to 'flex' on load */
+            flex-direction: column; 
+        }
+
+        .full-tool-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+            flex-grow: 1;
+        }
+        
+        .close-tool-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 34px; 
+            height: 34px; 
+            border-radius: 50%;
+            background-color: #e53e3e; /* Red */
+            color: white;
+            font-size: 17px; 
+            font-weight: 700;
+            /* Center the 'X' vertically */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid white;
+            cursor: pointer;
+            z-index: 1000; /* Above the wrapper (999) */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            transition: background-color 0.2s, transform 0.2s;
+        }
+
+        .close-tool-btn:hover {
+            background-color: #c53030;
+            transform: scale(1.05);
+        }
+        
+        /* --- END FULL-SCREEN TOOL STYLES --- */
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--dark);
+            border-radius: var(--radius);
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--light);
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: var(--light);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            margin-bottom: 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .update-notification {
+            background: var(--warning);
+            color: var(--dark);
+            padding: 0.8rem 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .update-notification button {
+            background: var(--dark);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* NEW FULLSCREEN TOGGLE STYLES */
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .fullscreen-toggle {
+            background: none;
+            border: none;
+            color: var(--secondary);
+            font-size: 1.3rem; /* Small size */
+            cursor: pointer;
+            padding: 0;
+            transition: color 0.2s, background 0.2s;
+            line-height: 1;
+            width: 26px; /* Define small target area */
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+        }
+
+        .fullscreen-toggle:hover {
+            color: var(--light);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="logo-container">
+            <div class="logo-icon">⚒️</div>
+            <div class="logo-text">
+                <span class="parenthesis left">{</span>
+                <span class="logo-word forge">Forge</span>
+                <span class="logo-word studio">Studio™</span>
+                <span class="parenthesis right">}</span>
+            </div>
+        </div>
+        <div class="loading-bar">
+            <div class="loading-progress"></div>
+        </div>
+        <div class="tagline">Tool Management System</div>
+    </div>
+
+    <!-- Main Application -->
+    <div class="app-container" id="appContainer">
+        <header>
+            <div class="logo">
+                <div class="logo-icon-small">⚒️</div>
+                <h1>ForgeStudio™</h1>
+            </div>
+            <div class="header-info">
+                <span>Tool Management System</span>
+                <!-- NEW: Fullscreen Toggle Button -->
+                <button id="fullscreenToggle" title="Toggle Fullscreen" class="fullscreen-toggle">
+                    <!-- Icon updated by JavaScript -->
+                    &#x2922; 
+                </button>
+            </div>
+        </header>
+        
+        <!-- PROMO BANNER (NEW ELEMENT) -->
+        <div id="promoBanner" class=""></div>
+
+        <div class="container">
+            <div class="sidebar">
+                <div class="tools-section">
+                    <h2>
+                        <span>🛠️</span>
+                        Managed Tools
+                    </h2>
+                    <div class="tools-grid" id="toolsGrid">
+                        <!-- Tool cards will be dynamically generated -->
+                    </div>
+                </div>
+
+                <div class="local-tool-section">
+                    <h2>
+                        <span>📂</span>
+                        Local Tools
+                    </h2>
+                    <div class="file-input-wrapper">
+                        <button class="btn btn-outline" id="loadLocalBtn">
+                            <span>📁</span>
+                            Load a Local Tool
+                        </button>
+                        <input type="file" id="localFileInput" accept=".html" style="display: none;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-state-icon">⚒️</div>
+                    <h2>No Tool Selected</h2>
+                    <p>Select a tool from the sidebar to begin working. You can load local tools or use the managed tools that are automatically updated.</p>
+                    <p style="margin-top: 1rem; color: var(--secondary); font-weight: 600; max-width: 400px;">
+                        💡 For the full app experience, click the fullscreen button (&#x2922;) in the header!
+                    </p>
+                </div>
+                
+                <!-- The iframe is removed from here -->
+            </div>
+        </div>
+        
+        <!-- NEW: Full Screen Overlay for Active Tool -->
+        <div id="fullScreenToolWrapper" class="tool-fullscreen-wrapper">
+            <iframe class="full-tool-frame" id="toolFrame"></iframe>
+            <button id="closeToolBtn" class="close-tool-btn" aria-label="Close Tool">&times;</button>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-message">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Ready</span>
+            </div>
+            <div class="status-info">
+                <span id="currentToolInfo"></span>
+            </div>
+        </div>
+
+        <div class="modal" id="updateModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">Update Available</div>
+                    <button class="close-modal update-close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>A new version of <span id="updateToolName"></span> is available!</p>
+                    <div class="version-info">
+                        <p>Current version: <span id="currentVersion"></span></p>
+                        <p>New version: <span id="newVersion"></span></p>
+                    </div>
+                    <p>Would you like to update now?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" id="cancelUpdate">Later</button>
+                    <button class="btn" id="confirmUpdate">Update Now</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: Confirmation Modal for Tool Removal -->
+        <div class="modal" id="confirmModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title" id="confirmTitle">Remove Tool</div>
+                    <button class="close-modal confirm-close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmMessage">Are you sure you want to remove this tool from ForgeStudio? This will also delete the cached file from your browser's local storage.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" id="cancelRemove">Cancel</button>
+                    <button class="btn" id="confirmRemove" style="background-color: #e74c3c; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">Remove</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Store managed tool sources separately, not in the main TOOLS list
+        const MANAGED_TOOL_SOURCES = {
+            'erd_forge': {
+                name: 'ERD Forge',
+                githubUrl: 'https://raw.githubusercontent.com/Cleo876/ERD-Forge/refs/heads/main/erd_forge.html',
+                version: '0.0'
+            },
+            'wireforge': {
+                name: 'WireForge',
+                githubUrl: 'https://raw.githubusercontent.com/Cleo876/WireForge/refs/heads/main/WireForge.html',
+                version: '0.0'
+            }
+        };
+
+        // UPDATED: URL for the external promotional message JSON file
+        const PROMO_URL = 'https://raw.githubusercontent.com/Cleo876/WireForge/refs/heads/main/forge_promo.json';
+
+        // Initialize TOOLS as an empty object. Tools will be added dynamically from localStorage
+        const TOOLS = {}; 
+        
+        // GLOBAL VARIABLE FOR TIMEOUT
+        let statusTimeout = null;
+        let promoTimeout = null; // New timeout for the promo banner
+
+        // NEW GLOBAL AUDIO CONTEXT
+        let audioCtx = null;
+        let isAudioReady = false; 
+        
+        // NEW: Flag to ensure promo polling only starts once
+        let isPromoPollingStarted = false;
+
+        // DOM Elements
+        const splashScreen = document.getElementById('splashScreen');
+        const appContainer = document.getElementById('appContainer');
+        const toolsGrid = document.getElementById('toolsGrid');
+        
+        const fullScreenToolWrapper = document.getElementById('fullScreenToolWrapper');
+        const toolFrame = document.getElementById('toolFrame');
+        const closeToolBtn = document.getElementById('closeToolBtn');
+        
+        const emptyState = document.getElementById('emptyState');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const currentToolInfo = document.getElementById('currentToolInfo');
+        const loadLocalBtn = document.getElementById('loadLocalBtn');
+        const localFileInput = document.getElementById('localFileInput');
+        
+        // NEW: Promo Banner element
+        const promoBanner = document.getElementById('promoBanner');
+
+        // Fullscreen elements
+        const fullscreenToggle = document.getElementById('fullscreenToggle');
+
+
+        // Modals and Modal Elements
+        const updateModal = document.getElementById('updateModal');
+        const updateToolName = document.getElementById('updateToolName');
+        const currentVersion = document.getElementById('currentVersion');
+        const newVersion = document.getElementById('newVersion');
+        const cancelUpdate = document.getElementById('cancelUpdate');
+        const confirmUpdate = document.getElementById('confirmUpdate');
+        const updateCloseModal = document.querySelector('.update-close-modal');
+        
+        // Confirmation Modal Elements
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmMessage = document.getElementById('confirmMessage');
+        const confirmRemove = document.getElementById('confirmRemove');
+        const cancelRemove = document.getElementById('cancelRemove');
+        const confirmCloseModal = document.querySelector('.confirm-close-modal');
+
+
+        // Current state
+        let currentToolId = null;
+        let updatePending = null;
+        let toolIdToRemove = null; // Stores the ID of the tool waiting for removal confirmation
+        
+        // UTILITY FUNCTION: Title Case Formatting
+        function formatToolName(toolId) {
+            if (!toolId) return '';
+            // Replaces underscores with space, then capitalizes the first letter of each word
+            return toolId.replace(/_/g, ' ')
+                         .split(' ')
+                         .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                         .join(' ');
+        }
+
+
+        // Initialize the application
+        function init() {
+            // MOVED: Attempt to enter fullscreen immediately upon script execution.
+            attemptFullscreen(); 
+            
+            // Show splash screen for 3 seconds, then transition to main app
+            setTimeout(() => {
+                splashScreen.classList.add('hidden');
+                setTimeout(() => {
+                    appContainer.classList.add('visible');
+                    initializeApp();
+                }, 800);
+            }, 3000);
+        }
+
+        // Initialize the main application
+        function initializeApp() {
+            loadToolsFromStorage(); // Load any previously cached tools first
+            renderToolCards();
+            setupEventListeners();
+            checkAllTools();
+            
+            // REMOVED: Immediate call to checkPromotionalMessage and setInterval
+        }
+        
+        // --- AUDIO INIT & LOGIC ---
+        function initializeAudioContext() {
+            if (isAudioReady) return;
+
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                isAudioReady = true;
+                // Log for debugging
+                console.log("AudioContext initialized by user gesture.");
+            } catch (e) {
+                console.warn("AudioContext initialization failed:", e);
+            }
+        }
+
+        function playAlertSound() {
+            if (!isAudioReady || !audioCtx) {
+                console.warn("Audio not ready or context unavailable. Sound blocked by browser policy.");
+                return;
+            }
+
+            try {
+                // Create an oscillator (sound source)
+                const oscillator = audioCtx.createOscillator();
+                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // A4 note
+                
+                // Create a gain node (volume control)
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                
+                // Attack: ramp up volume quickly
+                gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.01);
+                // Release: ramp down volume quickly for a short tone
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+
+                // Connect the nodes
+                oscillator.connect(gainNode).connect(audioCtx.destination);
+                
+                // Start and stop the oscillator after the duration
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.3);
+            } catch (e) {
+                console.error("Error playing alert sound:", e);
+            }
+        }
+
+        // --- PROMOTIONAL MESSAGE LOGIC (UPDATED) ---
+        
+        function startPromoPolling() {
+            if (isPromoPollingStarted) return;
+            
+            // Perform the first check immediately upon first user click
+            checkPromotionalMessage(); 
+            
+            // Then set up the recurring interval
+            setInterval(checkPromotionalMessage, 1800000); 
+
+            isPromoPollingStarted = true;
+        }
+
+        // Function to show and hide the promo banner
+        function setPromoBanner(message, playSound = false) {
+            if (promoTimeout) {
+                clearTimeout(promoTimeout);
+                promoTimeout = null;
+            }
+            
+            // 1. Show the banner
+            promoBanner.textContent = message;
+            // Clear any previous animation class
+            promoBanner.classList.remove('fade-up'); 
+            // Trigger transition to visible (transform: translateY(0))
+            promoBanner.classList.add('visible'); 
+
+            if (playSound) {
+                playAlertSound(); // Now uses the global audio context
+            }
+
+            // 2. Set fade-out timer (5 seconds)
+            promoTimeout = setTimeout(() => {
+                // Start the fade-out animation (moves up)
+                promoBanner.classList.add('fade-up');
+                
+                // 3. Set second timeout to reset the state after animation completes
+                setTimeout(() => {
+                    // Remove animation and hide completely
+                    promoBanner.classList.remove('visible', 'fade-up');
+                }, 500); // Matches the 0.5s animation duration
+            }, 5000); // 5 seconds display time
+        }
+        
+        async function checkPromotionalMessage() {
+            // Do not override tool-related status bar messages
+            const isStatusBarActive = statusText.textContent !== 'Ready' && !statusText.classList.contains('hidden-message');
+
+            if (isStatusBarActive) {
+                return;
+            }
+
+            try {
+                const response = await fetch(PROMO_URL);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const promoData = await response.json();
+
+                if (promoData.active && promoData.message) {
+                    // Pass the optional 'sound' property from the JSON
+                    setPromoBanner(`📣 PROMO: ${promoData.message}`, promoData.sound === true); 
+                } else if (promoData.active === false) {
+                    // If the latest message is explicitly turned off, ensure any visible banner is removed
+                    if (promoBanner.classList.contains('visible')) {
+                        setPromoBanner('', false);
+                    }
+                    // Reset footer bar
+                    setStatusBar('Ready', 'success'); 
+                }
+            } catch (error) {
+                console.warn("Could not check for promotional message. Remote file may not exist or network failed.");
+                // Fail silently
+            }
+        }
+        // --- END PROMOTIONAL MESSAGE LOGIC ---
+
+
+        // --- FULLSCREEN LOGIC ---
+
+        function attemptFullscreen() {
+            // Request fullscreen on the body element, which contains the whole app.
+            if (document.body.requestFullscreen) {
+                document.body.requestFullscreen().catch(err => {
+                    console.warn(`Fullscreen launch failed: ${err.name}`);
+                });
+            }
+        }
+        
+        function toggleFullscreen() {
+            // NEW: Initialize audio context on first fullscreen click
+            initializeAudioContext();
+            
+            if (document.fullscreenElement) {
+                // Exit fullscreen
+                document.exitFullscreen();
+            } else {
+                // Enter fullscreen (on the body element)
+                document.body.requestFullscreen().catch(err => {
+                    setStatusBar(`Error: Fullscreen mode blocked. Check browser settings.`, 'error');
+                });
+            }
+        }
+
+        function handleFullscreenChange() {
+            if (document.fullscreenElement) {
+                // Currently in fullscreen
+                fullscreenToggle.innerHTML = '&#x292B;'; // Contracting arrows (Exit)
+                fullscreenToggle.title = 'Exit Fullscreen Mode';
+            } else {
+                // Not in fullscreen
+                fullscreenToggle.innerHTML = '&#x2922;'; // Expanding arrows (Enter)
+                fullscreenToggle.title = 'Enter Fullscreen Mode';
+            }
+        }
+
+        // --- END FULLSCREEN LOGIC ---
+        
+        // Load tools from local storage into the TOOLS object
+        function loadToolsFromStorage() {
+            // Iterate over local storage keys to find cached tools
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.endsWith('-version')) {
+                    const toolId = key.replace('-version', '');
+                    const storedVersion = localStorage.getItem(key);
+                    
+                    let toolData = {
+                        // Use formatToolName for consistent capitalization of derived names
+                        name: formatToolName(toolId), 
+                        version: storedVersion,
+                        status: 'unknown',
+                        githubUrl: null
+                    };
+
+                    // Check if this tool is a known managed source (like ERD Forge)
+                    if (MANAGED_TOOL_SOURCES.hasOwnProperty(toolId)) {
+                        toolData = {
+                            ...MANAGED_TOOL_SOURCES[toolId],
+                            version: storedVersion, // Use the stored version
+                            status: 'unknown'
+                        };
+                        // Ensure the display name for managed tools is correctly set
+                        toolData.name = MANAGED_TOOL_SOURCES[toolId].name;
+                    }
+                    
+                    TOOLS[toolId] = toolData;
+                }
+            }
+        }
+
+        // Render tool cards in the sidebar
+        function renderToolCards() {
+            toolsGrid.innerHTML = '';
+            
+            Object.keys(TOOLS).forEach(toolId => {
+                const tool = TOOLS[toolId];
+                const toolCard = document.createElement('div');
+                toolCard.className = 'tool-card';
+                toolCard.dataset.toolId = toolId;
+                
+                // Apply Trademark symbol (™) unconditionally to all tool names
+                const displayName = `${tool.name}™`;
+                
+                toolCard.innerHTML = `
+                    <button class="remove-tool-btn" data-tool-id="${toolId}" aria-label="Remove Tool">&minus;</button>
+                    <div class="tool-status ${tool.status}">${getStatusText(tool.status)}</div> 
+                    <div class="tool-header">
+                        <div class="tool-name">${displayName}</div>
+                    </div>
+                    <div class="tool-version">Version: ${getStoredVersion(toolId) || 'Unknown'}</div>
+                `;
+                
+                toolCard.addEventListener('click', () => loadTool(toolId));
+                
+                // Attach remove event listener
+                toolCard.querySelector('.remove-tool-btn').addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent the tool card from loading
+                    removeTool(toolId); // Calls the function that triggers the custom modal
+                });
+                
+                toolsGrid.appendChild(toolCard);
+            });
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            loadLocalBtn.addEventListener('click', () => localFileInput.click());
+            localFileInput.addEventListener('change', handleFileSelect);
+            
+            closeToolBtn.addEventListener('click', closeTool);
+            
+            // Fullscreen listeners
+            fullscreenToggle.addEventListener('click', toggleFullscreen);
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            
+            // NEW: Add ONE click listener to initialize audio and start promo polling
+            document.addEventListener('click', (e) => {
+                initializeAudioContext();
+                startPromoPolling();
+            }, { once: true });
+            document.addEventListener('touchstart', (e) => {
+                initializeAudioContext();
+                startPromoPolling();
+            }, { once: true });
+            
+            // Update Modal Listeners
+            cancelUpdate.addEventListener('click', () => updateModal.style.display = 'none');
+            confirmUpdate.addEventListener('click', confirmToolUpdate);
+            updateCloseModal.addEventListener('click', () => updateModal.style.display = 'none');
+            
+            // Confirmation Modal Listeners
+            confirmRemove.addEventListener('click', () => {
+                if (toolIdToRemove) {
+                    performToolRemoval(toolIdToRemove);
+                }
+            });
+            cancelRemove.addEventListener('click', () => confirmModal.style.display = 'none');
+            confirmCloseModal.addEventListener('click', () => confirmModal.style.display = 'none');
+            
+            // Close modals when clicking outside
+            [updateModal, confirmModal].forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Set initial state of the fullscreen button
+            handleFullscreenChange();
+        }
+        
+        // Function to show the custom modal for removal confirmation
+        function removeTool(toolId) {
+            toolIdToRemove = toolId;
+            const toolName = TOOLS[toolId].name;
+
+            confirmMessage.innerHTML = `Are you sure you want to remove <strong>${toolName}™</strong> from ForgeStudio? This will permanently delete the cached file from your browser's local storage.`;
+            confirmModal.style.display = 'flex';
+        }
+
+        // Function containing the actual removal logic
+        function performToolRemoval(toolId) {
+            // Hide the modal immediately
+            confirmModal.style.display = 'none';
+
+            // Clean up Local Storage
+            localStorage.removeItem(`${toolId}-code`);
+            localStorage.removeItem(`${toolId}-version`);
+
+            const toolName = TOOLS[toolId].name;
+
+            // Remove from TOOLS object
+            delete TOOLS[toolId];
+
+            // Reset UI if the removed tool was active
+            if (currentToolId === toolId) {
+                closeTool(); // Resets the main canvas/status
+            }
+            
+            // Clear the pending ID
+            toolIdToRemove = null;
+
+            // Re-render the sidebar and set status
+            renderToolCards(); 
+            setStatusBar(`'${toolName}™' removed successfully.`, 'success');
+        }
+
+
+        // Handle file selection for local tools
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // 1. Prevent self-loading (ForgeStudio.html)
+            if (file.name.toLowerCase() === 'forgestudio.html') {
+                setStatusBar(`Error: Cannot load ForgeStudio™ as a tool.`, 'error');
+                event.target.value = null; // Clear file input
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const fileContent = e.target.result;
+                const fileName = file.name.replace('.html', '');
+                
+                // Use clean filename as a consistent ID to prevent duplicates
+                const toolId = fileName.toLowerCase().replace(/ /g, '_').replace(/[^a-z0-9_]/g, '');
+                
+                // 2. Prevent loading if tool already exists
+                if (TOOLS.hasOwnProperty(toolId)) {
+                    // Notify the user that the file is already loaded
+                    setStatusBar(`Info: Tool '${TOOLS[toolId].name}™' is already loaded.`, 'success');
+                    return; 
+                }
+
+                let toolIsNew = !TOOLS.hasOwnProperty(toolId); 
+                let isManaged = false;
+
+                // 1. Check if the uploaded file is a known managed tool (like ERD Forge)
+                if (MANAGED_TOOL_SOURCES.hasOwnProperty(toolId)) {
+                    // This is a managed tool, so we add its full data, including githubUrl
+                    TOOLS[toolId] = {
+                        ...MANAGED_TOOL_SOURCES[toolId], // Copy source properties
+                        name: MANAGED_TOOL_SOURCES[toolId].name, // Use the correct managed name
+                        status: 'local' // Initial status after local load
+                    };
+                    isManaged = true;
+                } else if (toolIsNew) {
+                    // 2. If it's a new, truly local file
+                    TOOLS[toolId] = {
+                        // Use formatToolName for consistent capitalization
+                        name: formatToolName(toolId), 
+                        githubUrl: null, // No remote URL
+                        version: '0.0',
+                        status: 'local'
+                    };
+                }
+                
+                // Save the local file with baseline version or current known version
+                const versionToSave = isManaged ? getStoredVersion(toolId) || '0.0' : '0.0';
+                saveToolToStorage(toolId, fileContent, versionToSave);
+                
+                // Update UI status
+                updateToolStatus(toolId, 'local');
+                
+                // Re-render the cards (will only render one card for toolId)
+                renderToolCards();
+                
+                // If it's a managed tool, check for updates immediately
+                if (isManaged) {
+                    // This kicks off the check against GitHub (The user's local file is the first 'cached' version)
+                    checkForUpdates(toolId); 
+                }
+
+                // Load the tool
+                loadTool(toolId);
+            };
+            
+            reader.readAsText(file);
+            setStatusBar(`Loading local tool '${file.name}'...`, 'loading');
+            
+            // Ensure input is cleared whether loading succeeded or was blocked by the early self-loading check.
+            event.target.value = null;
+        }
+
+        // Load a tool into the iframe
+        function loadTool(toolId) {
+            currentToolId = toolId;
+            const tool = TOOLS[toolId];
+            
+            // Update UI
+            document.querySelectorAll('.tool-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            document.querySelector(`.tool-card[data-tool-id="${toolId}"]`).classList.add('active');
+            
+            // HIDE empty state
+            emptyState.style.display = 'none';
+            
+            // SHOW THE FULL-SCREEN WRAPPER
+            fullScreenToolWrapper.style.display = 'flex';
+            
+            setStatusBar(`Loading ${tool.name}™...`, 'loading');
+            currentToolInfo.textContent = `${tool.name}™ | Version: ${getStoredVersion(toolId) || 'Unknown'}`;
+            
+            // Check if we have a cached version (which we should, as it's added on initial load/upload)
+            const cachedCode = localStorage.getItem(`${toolId}-code`);
+            
+            if (cachedCode) {
+                // Load the cached version
+                const blob = new Blob([cachedCode], { type: 'text/html' });
+                toolFrame.src = URL.createObjectURL(blob);
+                setStatusBar(`${tool.name}™ loaded from cache`, 'success');
+                
+                // Check for updates in the background (will happen automatically for managed tools)
+                if (tool.githubUrl) {
+                    checkForUpdates(toolId);
+                }
+            } else {
+                // This path should ideally not be hit for any tool
+                setStatusBar(`Fatal Error: Could not load code for ${tool.name}™`, 'error');
+                console.error(`ERROR: Code for ${toolId} missing from storage.`);
+            }
+        }
+        
+        // Function to close the active tool and return to the dashboard
+        function closeTool() {
+            // HIDE THE FULL-SCREEN WRAPPER
+            fullScreenToolWrapper.style.display = 'none';
+            toolFrame.src = 'about:blank'; // Clear the iframe content
+            
+            // SHOW empty state again
+            emptyState.style.display = 'flex';
+            
+            // Remove active state from card
+            if (currentToolId) {
+                const activeCard = document.querySelector(`.tool-card[data-tool-id="${currentToolId}"]`);
+                if (activeCard) {
+                    activeCard.classList.remove('active');
+                }
+            }
+            
+            currentToolId = null;
+            currentToolInfo.textContent = '';
+            setStatusBar('Ready', 'success');
+        }
+
+        // Check for updates for all tools
+        function checkAllTools() {
+            Object.keys(TOOLS).forEach(toolId => {
+                if (TOOLS[toolId].githubUrl) {
+                    checkForUpdates(toolId);
+                }
+            });
+        }
+
+        // Check for updates for a specific tool
+        function checkForUpdates(toolId) {
+            const tool = TOOLS[toolId];
+            if (!tool.githubUrl) return;
+            
+            setStatusBar(`Checking for updates: ${tool.name}™`, 'loading');
+            
+            fetch(tool.githubUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.text();
+                })
+                .then(htmlContent => {
+                    // Extract version from the HTML
+                    const versionMatch = htmlContent.match(/const TOOL_VERSION = ['"]([^'"]+)['"]/);
+                    const remoteVersion = versionMatch ? versionMatch[1] : '0.0'; 
+                    
+                    const storedVersion = getStoredVersion(toolId) || '0.0';
+                    
+                    if (isVersionNewer(remoteVersion, storedVersion)) {
+                        // Update available
+                        updateToolStatus(toolId, 'update-available');
+                        setStatusBar(`Update available for ${tool.name}™`, 'success');
+                        
+                        // If this is the current tool, show update notification
+                        if (toolId === currentToolId) {
+                            showUpdateNotification(toolId, storedVersion, remoteVersion);
+                        }
+                    } else {
+                        // Tool is up to date
+                        updateToolStatus(toolId, 'up-to-date');
+                        if (toolId === currentToolId) {
+                            setStatusBar(`${tool.name}™ is up to date`, 'success');
+                        }
+                    }
+                    
+                    renderToolCards();
+                })
+                .catch(error => {
+                    console.error(`Error checking updates for ${tool.name}™:`, error);
+                    updateToolStatus(toolId, 'error');
+                    if (toolId === currentToolId) {
+                        setStatusBar(`Failed to check updates for ${tool.name}™`, 'error');
+                    }
+                    renderToolCards();
+                });
+        }
+
+        // Fetch tool from GitHub and update if newer
+        function fetchToolFromGitHub(toolId) {
+            const tool = TOOLS[toolId];
+            
+            fetch(tool.githubUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.text();
+                })
+                .then(htmlContent => {
+                    // Extract version from the HTML
+                    const versionMatch = htmlContent.match(/const TOOL_VERSION = ['"]([^'"]+)['"]/);
+                    const remoteVersion = versionMatch ? versionMatch[1] : '0.0';
+                    
+                    const storedVersion = getStoredVersion(toolId) || '0.0';
+                    
+                    // Always save if we don't have a stored version or if remote is newer
+                    if (!getStoredCode(toolId) || isVersionNewer(remoteVersion, storedVersion)) {
+                        saveToolToStorage(toolId, htmlContent, remoteVersion);
+                        updateToolStatus(toolId, 'up-to-date');
+                        setStatusBar(`${tool.name}™ updated to version ${remoteVersion}`, 'success');
+                    } else {
+                        updateToolStatus(toolId, 'up-to-date');
+                        setStatusBar(`${tool.name}™ is up to date`, 'success');
+                    }
+                    
+                    // Reload the tool with the updated content
+                    loadTool(toolId);
+                    renderToolCards();
+                })
+                .catch(error => {
+                    console.error(`Error fetching ${tool.name}™:`, error);
+                    updateToolStatus(toolId, 'error');
+                    setStatusBar(`Failed to load ${tool.name}™`, 'error');
+                    renderToolCards();
+                });
+        }
+
+        // Show update notification
+        function showUpdateNotification(toolId, currentVer, newVer) {
+            updatePending = { toolId, currentVer, newVer };
+            
+            updateToolName.textContent = TOOLS[toolId].name;
+            currentVersion.textContent = currentVer;
+            newVersion.textContent = newVer;
+            
+            updateModal.style.display = 'flex';
+        }
+
+        // Confirm and perform tool update
+        function confirmToolUpdate() {
+            if (!updatePending) return;
+            
+            const { toolId, newVer } = updatePending;
+            const tool = TOOLS[toolId];
+            
+            setStatusBar(`Updating ${tool.name}™...`, 'loading');
+            
+            fetch(tool.githubUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.text();
+                })
+                .then(htmlContent => {
+                    saveToolToStorage(toolId, htmlContent, newVer);
+                    updateToolStatus(toolId, 'up-to-date');
+                    setStatusBar(`${tool.name}™ updated to version ${newVer}`, 'success');
+                    
+                    // Reload the tool if it's currently active
+                    if (currentToolId === toolId) {
+                        loadTool(toolId);
+                    }
+                    
+                    renderToolCards();
+                    updateModal.style.display = 'none';
+                    updatePending = null;
+                })
+                .catch(error => {
+                    console.error(`Error updating ${tool.name}™:`, error);
+                    setStatusBar(`Failed to update ${tool.name}™`, 'error');
+                    updateModal.style.display = 'none';
+                    updatePending = null;
+                });
+        }
+
+        // Utility functions
+        function getStoredVersion(toolId) {
+            return localStorage.getItem(`${toolId}-version`);
+        }
+
+        function getStoredCode(toolId) {
+            return localStorage.getItem(`${toolId}-code`);
+        }
+
+        function saveToolToStorage(toolId, code, version) {
+            localStorage.setItem(`${toolId}-code`, code);
+            localStorage.setItem(`${toolId}-version`, version);
+        }
+
+        function updateToolStatus(toolId, status) {
+            if (TOOLS[toolId]) {
+                TOOLS[toolId].status = status;
+            }
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'unknown': 'Unknown',
+                'up-to-date': 'Up to date',
+                'update-available': 'Update available',
+                'local': 'Local',
+                'error': 'Error'
+            };
+            return statusMap[status] || 'Unknown';
+        }
+
+        function isVersionNewer(version1, version2) {
+            const v1 = version1.split('.').map(Number);
+            const v2 = version2.split('.').map(Number);
+            
+            for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+                const num1 = v1[i] || 0;
+                const num2 = v2[i] || 0;
+                
+                if (num1 > num2) return true;
+                if (num1 < num2) return false;
+            }
+            
+            return false;
+        }
+
+        // Renamed setStatus to setStatusBar to separate logic
+        function setStatusBar(message, type) {
+            // 1. Clear any existing timeout
+            if (statusTimeout) {
+                clearTimeout(statusTimeout);
+                statusTimeout = null;
+            }
+            
+            // 2. Reset classes immediately (Remove fade-out class, make visible)
+            statusText.classList.remove('hidden-message');
+            currentToolInfo.classList.remove('hidden-message');
+
+            // 3. Set message and indicator
+            statusText.textContent = message;
+            
+            // Reset classes
+            statusIndicator.className = 'status-indicator';
+            
+            // Add appropriate class
+            if (type === 'loading') {
+                statusIndicator.classList.add('loading');
+            } else if (type === 'error') {
+                statusIndicator.classList.add('error');
+                statusIndicator.style.backgroundColor = 'var(--accent)'; // Use accent for error visual
+            } else if (type === 'warning') {
+                // This path is now used for the footer bar, which should default to the warning color
+                statusIndicator.style.backgroundColor = 'var(--warning)';
+            } else {
+                statusIndicator.style.backgroundColor = 'var(--success)';
+            }
+            
+            // 4. Set fade-out timer for non-loading statuses
+            if (type !== 'loading') {
+                statusTimeout = setTimeout(() => {
+                    // Start the fade-out animation
+                    statusText.classList.add('hidden-message');
+                    currentToolInfo.classList.add('hidden-message'); 
+
+                    // Set a second timeout to reset the state back to 'Ready' after the 0.5s animation completes.
+                    setTimeout(() => {
+                        // This resets the text and removes the hidden-message class
+                        setStatusBar('Ready', 'success');
+                    }, 500); 
+                }, 5000); // 5 seconds delay before starting fade
+            }
+        }
+
+        // Initialize the application
+        init();
+    </script>
+</body>
+</html>
