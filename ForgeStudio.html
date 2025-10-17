@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ForgeStudio - Tool Management</title>
     <script>
-        const TOOL_VERSION = '1.5.4';
+        const TOOL_VERSION = '1.5.5';
     </script>
     <style>
         :root {
@@ -1013,12 +1013,10 @@
 
             hasInteracted = true;
             
-            if (isSplashComplete) {
-                // Splash is already complete, so run immediately
-                startPromoPolling();
-                initializeAudioContext();
-            }
-            // If the splash is not complete, initializeApp() will handle it later.
+            // The initial promo check has now fired in initializeApp().
+            // We only need to start the recurring polling and initialize audio now.
+            startPromoPolling();
+            initializeAudioContext();
         }
 
 
@@ -1036,21 +1034,30 @@
                 }, 800);
             }, 3000);
         }
+        
+        // NEW: Function to save the current MANAGED_TOOL_SOURCES state to localStorage
+        function saveManagedSourcesToStorage() {
+            try {
+                // Save the custom definitions (which override the hardcoded ones)
+                localStorage.setItem('managed_sources_custom', JSON.stringify(MANAGED_TOOL_SOURCES));
+            } catch (e) {
+                console.error("Failed to save managed tool sources to local storage:", e);
+            }
+        }
+
 
         // Initialize the main application
         function initializeApp() {
             loadToolsFromStorage(); // Load any previously cached tools first
             renderToolCards();
             setupEventListeners();
-            checkAllTools();
             
-            // NEW: Set flag that splash is done and check if interaction already occurred
+            // FIX: Initial promo check fires immediately after splash screen is done.
+            checkPromotionalMessage(); 
+            
+            checkAllTools(); 
+            
             isSplashComplete = true; 
-            if (hasInteracted) {
-                // If the user clicked while the splash screen was running, start polling/audio now.
-                startPromoPolling(); 
-                initializeAudioContext(); 
-            }
         }
         
         // --- AUDIO INIT & LOGIC ---
@@ -1104,8 +1111,7 @@
         function startPromoPolling() {
             if (isPromoPollingStarted) return;
             
-            // Perform the first check immediately upon first user click
-            checkPromotionalMessage(); 
+            // NOTE: Initial check is run in initializeApp(). We only set the interval here now.
             
             // Then set up the recurring interval
             setInterval(checkPromotionalMessage, 1800000); 
@@ -1229,10 +1235,9 @@
             tool.status = 'unknown'; // Force a check
             
             // 2. Ensure its properties are correctly saved for future session (persistency)
-            // Note: Tool code and version are already in localStorage from initial load/upload.
-            // We just need to ensure the managed sources are updated to reflect the new link
             if (MANAGED_TOOL_SOURCES.hasOwnProperty(toolId)) {
                 MANAGED_TOOL_SOURCES[toolId].githubUrl = url;
+                // Preserve the existing name if it was a pre-managed tool
             } else {
                 // For a truly local tool, this effectively makes it a "managed local" tool
                 MANAGED_TOOL_SOURCES[toolId] = {
@@ -1241,6 +1246,10 @@
                     version: tool.version || '0.0'
                 };
             }
+            
+            // NEW: Persist the updated managed source configuration to localStorage
+            saveManagedSourcesToStorage(); 
+            
             // We save the version again just to be sure it's linked to the object in storage
             saveToolToStorage(toolId, getStoredCode(toolId) || '', tool.version || '0.0');
 
@@ -1299,6 +1308,18 @@
         
         // Load tools from local storage into the TOOLS object
         function loadToolsFromStorage() {
+             // 1. Load Custom Managed Sources from localStorage and merge them with hardcoded defaults
+            const customSourcesJson = localStorage.getItem('managed_sources_custom');
+            if (customSourcesJson) {
+                try {
+                    const customSources = JSON.parse(customSourcesJson);
+                    // Merge custom sources into the hardcoded list (new links override or extend defaults)
+                    Object.assign(MANAGED_TOOL_SOURCES, customSources);
+                } catch (e) {
+                    console.error("Failed to parse custom managed sources from local storage:", e);
+                }
+            }
+            
             // Iterate over local storage keys to find cached tools
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
@@ -1314,7 +1335,7 @@
                         githubUrl: null
                     };
 
-                    // Check if this tool is a known managed source (like ERD Forge)
+                    // Check if this tool is a known managed source (including dynamically linked ones)
                     if (MANAGED_TOOL_SOURCES.hasOwnProperty(toolId)) {
                         toolData = {
                             ...MANAGED_TOOL_SOURCES[toolId],
