@@ -1400,9 +1400,11 @@
             const cachedCode = localStorage.getItem(`${toolId}-code`);
             
             if (cachedCode) {
-                // Load the cached version
-                const blob = new Blob([cachedCode], { type: 'text/html' });
-                toolFrame.src = URL.createObjectURL(blob);
+                // --- CRITICAL CHANGE: Using srcdoc for maximal access ---
+                // By using srcdoc, the content is treated as being served by the same security context
+                // as the parent, which allows content to access window.parent for communication.
+                toolFrame.srcdoc = cachedCode;
+                
                 setStatusBar(`${tool.name}™ loaded from cache`, 'success');
                 
                 // Check for updates in the background (will happen automatically for managed tools)
@@ -1420,7 +1422,8 @@
         function closeTool() {
             // HIDE THE FULL-SCREEN WRAPPER
             fullScreenToolWrapper.style.display = 'none';
-            toolFrame.src = 'about:blank'; // Clear the iframe content
+            // --- CRITICAL CHANGE: Resetting srcdoc to clear content and maintain access ---
+            toolFrame.srcdoc = '';
             
             // SHOW empty state again
             emptyState.style.display = 'flex';
