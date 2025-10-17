@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ForgeStudio - Tool Management</title>
     <script>
-        const TOOL_VERSION = '1.0.0';
+        const TOOL_VERSION = '1.5.0';
     </script>
     <style>
         :root {
@@ -777,9 +777,15 @@
         <div class="container">
             <div class="sidebar">
                 <div class="tools-section">
-                    <h2>
-                        <span>🛠️</span>
-                        Managed Tools
+                    <h2 style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="display: flex; align-items: center; gap: 0.5rem;">
+                            🛠️
+                            Managed Tools
+                        </span>
+                        <!-- NEW: Link Tool Button -->
+                        <button id="addLinkBtn" title="Link local tool to GitHub URL" style="background: none; border: 1px solid var(--secondary); color: var(--secondary); padding: 0.2rem 0.5rem; font-size: 0.8rem; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                            🔗 Link Tool
+                        </button>
                     </h2>
                     <div class="tools-grid" id="toolsGrid">
                         <!-- Tool cards will be dynamically generated -->
@@ -868,6 +874,35 @@
                 </div>
             </div>
         </div>
+        
+        <!-- NEW: Manage Link Modal -->
+        <div class="modal" id="manageLinkModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">🔗 Link Local Tool to GitHub</div>
+                    <button class="close-modal link-close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 1rem; color: rgba(255, 255, 255, 0.8);">Select a tool and provide its GitHub raw link to enable automatic update checking.</p>
+                    
+                    <div class="input-group" style="margin-bottom: 1rem;">
+                        <label for="linkToolSelect" style="display: block; margin-bottom: 0.5rem; color: var(--secondary);">Select Tool to Upgrade:</label>
+                        <select id="linkToolSelect" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid rgba(255, 255, 255, 0.2); background-color: rgba(0, 0, 0, 0.3); color: var(--light); font-size: 1rem;">
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="githubUrlInput" style="display: block; margin-bottom: 0.5rem; color: var(--secondary);">GitHub Raw URL:</label>
+                        <input type="text" id="githubUrlInput" placeholder="e.g., https://raw.githubusercontent.com/user/repo/main/file.html" style="width: 100%; padding: 0.75rem; border-radius: var(--radius); border: 1px solid rgba(255, 255, 255, 0.2); background-color: rgba(0, 0, 0, 0.3); color: var(--light); font-size: 1rem;">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" id="cancelLink">Cancel</button>
+                    <button class="btn" id="confirmLink">Save Link & Check Updates</button>
+                </div>
+            </div>
+        </div>
 
     </div>
 
@@ -941,6 +976,15 @@
         const confirmRemove = document.getElementById('confirmRemove');
         const cancelRemove = document.getElementById('cancelRemove');
         const confirmCloseModal = document.querySelector('.confirm-close-modal');
+        
+        // NEW: Link Management Modal Elements
+        const addLinkBtn = document.getElementById('addLinkBtn');
+        const manageLinkModal = document.getElementById('manageLinkModal');
+        const linkToolSelect = document.getElementById('linkToolSelect');
+        const githubUrlInput = document.getElementById('githubUrlInput');
+        const confirmLink = document.getElementById('confirmLink');
+        const cancelLink = document.getElementById('cancelLink');
+        const linkCloseModal = document.querySelector('.link-close-modal');
 
 
         // Current state
@@ -1105,6 +1149,87 @@
             }
         }
         // --- END PROMOTIONAL MESSAGE LOGIC ---
+        
+        // --- NEW LINK MANAGEMENT LOGIC ---
+
+        function openManageLinkModal() {
+            // 1. Populate the dropdown with current tools
+            loadToolsForLinking();
+            
+            // 2. Show the modal
+            manageLinkModal.style.display = 'flex';
+        }
+
+        function loadToolsForLinking() {
+            linkToolSelect.innerHTML = ''; // Clear previous options
+            const toolIds = Object.keys(TOOLS);
+
+            if (toolIds.length === 0) {
+                linkToolSelect.innerHTML = '<option value="">No tools loaded yet.</option>';
+                confirmLink.disabled = true;
+                return;
+            }
+            
+            confirmLink.disabled = false;
+            linkToolSelect.innerHTML = '<option value="">-- Select a Tool --</option>';
+
+            toolIds.forEach(toolId => {
+                const tool = TOOLS[toolId];
+                // Display whether it's already managed or still local
+                const status = tool.githubUrl ? ' (Managed)' : ' (Local)';
+                const option = document.createElement('option');
+                option.value = toolId;
+                option.textContent = `${tool.name}™${status}`;
+                linkToolSelect.appendChild(option);
+            });
+        }
+
+        function saveGitHubLink() {
+            const toolId = linkToolSelect.value;
+            const url = githubUrlInput.value.trim();
+
+            // Simple validation
+            if (!toolId || !url) {
+                setStatusBar("Error: Please select a tool and provide a valid URL.", 'error');
+                return;
+            }
+            if (!url.startsWith('http')) {
+                setStatusBar("Error: URL must start with http or https.", 'error');
+                return;
+            }
+            
+            // 1. Update the TOOLS object
+            const tool = TOOLS[toolId];
+            tool.githubUrl = url;
+            tool.status = 'unknown'; // Force a check
+            
+            // 2. Ensure its properties are correctly saved for future session (persistency)
+            // Note: Tool code and version are already in localStorage from initial load/upload.
+            // We just need to ensure the managed sources are updated to reflect the new link
+            if (MANAGED_TOOL_SOURCES.hasOwnProperty(toolId)) {
+                MANAGED_TOOL_SOURCES[toolId].githubUrl = url;
+            } else {
+                // For a truly local tool, this effectively makes it a "managed local" tool
+                MANAGED_TOOL_SOURCES[toolId] = {
+                    name: tool.name,
+                    githubUrl: url,
+                    version: tool.version || '0.0'
+                };
+            }
+            // We save the version again just to be sure it's linked to the object in storage
+            saveToolToStorage(toolId, getStoredCode(toolId) || '', tool.version || '0.0');
+
+            // 3. Close modal and update UI
+            manageLinkModal.style.display = 'none';
+            githubUrlInput.value = ''; // Clear input
+            renderToolCards();
+            
+            // 4. Immediately check for updates with the new link
+            setStatusBar(`Link saved for ${tool.name}™. Checking for updates...`, 'loading');
+            checkForUpdates(toolId);
+        }
+        
+        // --- END NEW LINK MANAGEMENT LOGIC ---
 
 
         // --- FULLSCREEN LOGIC ---
@@ -1225,6 +1350,12 @@
             fullscreenToggle.addEventListener('click', toggleFullscreen);
             document.addEventListener('fullscreenchange', handleFullscreenChange);
             
+            // NEW: Link Management Listeners
+            addLinkBtn.addEventListener('click', openManageLinkModal);
+            confirmLink.addEventListener('click', saveGitHubLink);
+            cancelLink.addEventListener('click', () => manageLinkModal.style.display = 'none');
+            linkCloseModal.addEventListener('click', () => manageLinkModal.style.display = 'none');
+            
             // NEW: Add ONE click listener to initialize audio and start promo polling
             document.addEventListener('click', (e) => {
                 initializeAudioContext();
@@ -1250,7 +1381,7 @@
             confirmCloseModal.addEventListener('click', () => confirmModal.style.display = 'none');
             
             // Close modals when clicking outside
-            [updateModal, confirmModal].forEach(modal => {
+            [updateModal, confirmModal, manageLinkModal].forEach(modal => {
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) {
                         modal.style.display = 'none';
