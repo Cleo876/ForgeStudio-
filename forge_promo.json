@@ -1,4 +1,6 @@
 {
   "active": true,
-  "message": "Thank you to all that downloaded Forge Studio© More updates in the future!"
+  "message": "Check out link(https://github.com, our GitHub) for updates!"
+  "sound": true,
+  "duration": 8000
 }
