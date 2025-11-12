@@ -1,6 +1,6 @@
 {
   "active": true,
-  "message": "Check out link(https://github.com, our GitHub) for updates!"
+  "message": "Check out link(https://github.com, our GitHub) for updates!",
   "sound": true,
   "duration": 14000
 }
