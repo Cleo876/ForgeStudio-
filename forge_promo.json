@@ -1,7 +1,7 @@
 {
-  "active": true,
-  "message": "Check out link(https://github.com/Cleo876?tab=repositories, our GitHub Repositories) for updates!",
-  "sound": true,
-  "duration": 14000,
-  "sound": true
+    "active": true,
+    "notificationVersion": 1,
+    "message": "Thanks for downloading ForgeStudio! Check out link(https://github.com/Cleo876?tab=repositories, our GitHub Repositories) for more tools!",
+    "sound": true,
+    "duration": 14000
 }
