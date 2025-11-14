@@ -1,6 +1,6 @@
 {
     "active": true,
-    "notificationVersion": 2,
+    "notificationVersion": 3,
     "message": "Thanks for downloading ForgeStudio™! Check out link(https://github.com/Cleo876?tab=repositories, our GitHub Repositories) for more tools, Bye!",
     "sound": true,
     "duration": 14000
